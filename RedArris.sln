@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.32630.194
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedArris", "RedArris\RedArris.csproj", "{F99BA216-BDAA-43AB-9AE0-79613DB23DD9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedArris.Services", "RedArris.Services\RedArris.Services.csproj", "{9647E248-ED65-4461-B665-E82F945C8CB2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F99BA216-BDAA-43AB-9AE0-79613DB23DD9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F99BA216-BDAA-43AB-9AE0-79613DB23DD9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F99BA216-BDAA-43AB-9AE0-79613DB23DD9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F99BA216-BDAA-43AB-9AE0-79613DB23DD9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9647E248-ED65-4461-B665-E82F945C8CB2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9647E248-ED65-4461-B665-E82F945C8CB2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9647E248-ED65-4461-B665-E82F945C8CB2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9647E248-ED65-4461-B665-E82F945C8CB2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5DB90D87-B3D3-4BB6-94CB-EAA458CC85A4}
+	EndGlobalSection
+EndGlobal
