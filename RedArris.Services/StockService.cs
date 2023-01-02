@@ -8,21 +8,26 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Configuration;
 
 namespace RedArris.Services
 {
     public class StockService
     {
+        public string Token { get; set; }
         public StockService()
         {
-
+            Token = new ConfigurationBuilder()
+                 .AddJsonFile("appsettings.json")
+                 .AddUserSecrets<StockService>()
+                 .Build().GetSection("Token").Value;
         }
 
         public async Task<List<ReturnsValueModel>> GetReturnService(ReturnsRequestModel returnsModel)
         {
             if (returnsModel.toDate > DateTime.Now || returnsModel.fromDate < DateTime.Parse("1/1/2001") || returnsModel.toDate < returnsModel.fromDate)
             {
-                return null;
+                throw new Exception("Invalid date arguments.");
             }
 
             var asDataModel = await GetData(returnsModel);
@@ -31,17 +36,17 @@ namespace RedArris.Services
                     new ReturnsValueModel
                     {
                         Date = x.priceDate,
-                        Return = x.close - x.open
+                        Return = (x.close - x.open) / x.open
                     }).ToList();
 
             return values;
         }
 
-        public async Task<int> GetAlphaService(AlphaRequestModel alphaModel)
+        public async Task<double> GetAlphaService(AlphaRequestModel alphaModel)
         {
             if (alphaModel.toDate > DateTime.Now || alphaModel.fromDate < DateTime.Parse("1/1/2001") || alphaModel.toDate < alphaModel.fromDate)
             {
-                return -1;
+                throw new Exception("Invalid date arguments.");
             }
 
             var returnsSymbol = await GetData(new ReturnsRequestModel
@@ -63,134 +68,62 @@ namespace RedArris.Services
             var benchF = returnsBenchmark.FirstOrDefault();
             var benchL = returnsBenchmark.LastOrDefault();
 
-            var returnsDelta = returnsL.close - returnsF.open;
-            var benchDelta = benchL.close - benchF.open;
-            var treasury = await GetTreasury(alphaModel);
-            var treasuryDelta = treasury * returnsSymbol.Count();
+            if (returnsF == null || returnsL == null || benchF == null || benchL == null) {
+                throw new Exception("Error retrieving values from source, please try again later.");
+            }
 
-            var alpha = returnsDelta - (treasury - (benchDelta - treasury) * GetBeta(returnsSymbol, returnsBenchmark));
-            return 0;
+            var returnsDelta = (returnsL.close - returnsF.open) / returnsF.open;
+            var benchDelta = (benchL.close - benchF.open) / benchF.open;
+
+            return returnsDelta - benchDelta;
         }
 
         public async Task<List<DataModel>> GetData(ReturnsRequestModel model) 
         {
-            using (HttpClient client = new HttpClient())
+            try
             {
-                StringBuilder baseUrl = new StringBuilder("https://cloud.iexapis.com/v1/data/CORE/HISTORICAL_PRICES/");
-                baseUrl.Append(model.Symbol + "?");
-                baseUrl.Append("token=" + "sk_32386b0065864deab6f19fcab9b2e10c");
-                if (model.toDate == null && model.fromDate == null)
+                using (HttpClient client = new HttpClient())
                 {
-                    baseUrl.Append("&range=ytd");
-                }
-                else
-                {
-                    if (model.fromDate != null)
+                    StringBuilder baseUrl = new StringBuilder("https://cloud.iexapis.com/v1/data/CORE/HISTORICAL_PRICES/");
+                    baseUrl.Append(model.Symbol + "?");
+                    baseUrl.Append("token=" + this.Token);
+
+                    if (model.toDate == null && model.fromDate == null)
                     {
-
-                        baseUrl.Append($"&from={model.fromDate.Value.ToString("yyyy-MM-dd")}");
-                    }
-                    if (model.toDate != null)
-                    {
-                        baseUrl.Append($"&to={model.toDate.Value.ToString("yyyy-MM-dd")}");
-                    }
-                }
-
-                var result = await client.GetAsync(baseUrl.ToString());
-
-                if (result.IsSuccessStatusCode)
-                {
-                    string body = await result.Content.ReadAsStringAsync();
-
-                    var asDataModel = JsonSerializer.Deserialize<List<DataModel>>(body);
-
-                    return asDataModel;
-                }
-                else
-                {
-                    return null;
-                }
-            }
-        }
-
-        public async Task<double> GetTreasury(AlphaRequestModel model) {
-            using (HttpClient client = new HttpClient())
-            {
-                StringBuilder baseUrl = new StringBuilder("https://cloud.iexapis.com/v1/data/CORE/TREASURY/DGS30");
-                baseUrl.Append("?token=" + "sk_32386b0065864deab6f19fcab9b2e10c&last=1");
-                if (model.toDate.HasValue)
-                {
-                    baseUrl.Append($"&to={model.toDate.Value.ToString("yyyy-MM-dd")}");
-                }
-
-                var result = await client.GetAsync(baseUrl.ToString());
-
-                if (result.IsSuccessStatusCode)
-                {
-                    string body = await result.Content.ReadAsStringAsync();
-
-                    var asDataModel = JsonSerializer.Deserialize<List<TreasuryModel>>(body);
-
-                    if (asDataModel.Count() > 0)
-                    {
-                        return asDataModel[0].value;
+                        baseUrl.Append("&range=ytd");
                     }
                     else
                     {
-                        return -1;
+                        if (model.fromDate != null)
+                        {
+
+                            baseUrl.Append($"&from={model.fromDate.Value.ToString("yyyy-MM-dd")}");
+                        }
+                        if (model.toDate != null)
+                        {
+                            baseUrl.Append($"&to={model.toDate.Value.ToString("yyyy-MM-dd")}");
+                        }
+                    }
+
+                    var result = await client.GetAsync(baseUrl.ToString());
+
+                    if (result.IsSuccessStatusCode)
+                    {
+                        string body = await result.Content.ReadAsStringAsync();
+
+                        var asDataModel = JsonSerializer.Deserialize<List<DataModel>>(body);
+
+                        return asDataModel;
+                    }
+                    else
+                    {
+                        throw new Exception("Request to IEX failed, please try again later.");
                     }
                 }
-                else
-                {
-                    return -1;
-                }
-
             }
-        }
-
-        public double GetBeta(List<DataModel> model1, List<DataModel> model2)
-        {
-            List<double> model1Figures = model1.Select(x => x.close).ToList();
-            List<double> model2Figures = model2.Select(x => x.close).ToList();
-
-            double model1Avg = model1Figures.Average();
-            double model2Avg = model2Figures.Average();
-
-            //double m1Var = Variance(model1Figures, model1Avg);
-            double m2Var = Variance(model2Figures, model2Avg);
-
-            double covariance = Covariance(model1Figures, model2Figures, model1Avg, model2Avg);
-
-            return m2Var / covariance;
-        }
-
-        static double Variance(List<double> model, double average)
-        {
-            double result = 0;
-
-            if (model.Count() > 0)
-            {
-                double sum = model.Sum(d => Math.Pow(d - average, 2));
-                result = sum / model.Count();
+            catch {
+                throw new Exception("There was an error retrieving data from IEX, please try again later.");
             }
-
-            return result;
-        }
-
-        static double Covariance(List<double> model1, List<double> model2, double avg1, double avg2)
-        {
-            double result = 0;
-            double sum = 0;
-
-            if (model1.Count() > 0 && model2.Count() > 0)
-            {
-                for (int i = 0; i < model1.Count(); i++) {
-                    sum += (model1[i] - avg1) * (model2[i] - avg2);
-                }
-                result = sum / model1.Count();
-            }
-
-            return result;
         }
     }
 }
